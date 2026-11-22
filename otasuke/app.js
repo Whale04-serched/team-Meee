@@ -9,8 +9,27 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLI
 
 // アプリケーション状態
 let currentUser = null;
+let currentProfile = {
+  nickname: '名無しの生活者',
+  avatar_icon: '🏠',
+  avatar_color: '#2b8a78',
+  living_style: '一人暮らし'
+};
 let authMode = 'login'; // 'login' | 'signup'
 let currentPostFilter = 'all'; // 'all' | 'mine'
+
+// アバター選択肢
+const AVATAR_ICONS = ['🏠', '🐱', '🐶', '🐰', '🐻', '🐧', '🌱', '🌻', '🍳', '🧺', '☕', '✨'];
+const AVATAR_COLORS = [
+  '#2b8a78', // ティールグリーン
+  '#3b82f6', // ブルー
+  '#6366f1', // インディゴ
+  '#ec4899', // ピンク
+  '#f97316', // オレンジ
+  '#eab308', // イエロー
+  '#10b981', // エメラルド
+  '#64748b'  // スレートグレー
+];
 
 // =========================================================
 // 「きほんのき」コラムデータ
@@ -86,7 +105,7 @@ const COLUMNS_DATA = [
       <p>浴室の汚れは「皮脂・石けんカス・湿気」が原因です。</p>
       <ul>
         <li><strong>最後に熱いシャワーで壁と床を流す</strong>：石けんカスや皮脂を洗い流します。</li>
-        <li><strong>冷水をかけて浴室の温度を下げる</strong>：カビは20〜30℃の高温多湿を好むため、温度を下げると繁殖を抑えられます。</li>
+        <li><strong>冷水をかけて浴室の温度を下げる</strong>：カビは20〜30℃の高温多湿を好むため、温度を下げるると繁殖を抑えられます。</li>
         <li><strong>換気扇は24時間つけっぱなしにする</strong>：換気扇の電気代は1ヶ月つけっぱなしでも数百円程度です。</li>
       </ul>
     `
@@ -115,9 +134,10 @@ const navBtns = document.querySelectorAll('.nav-btn');
 const views = document.querySelectorAll('.view');
 const toastEl = document.getElementById('toastMessage');
 
-// 認証関連DOM
-const authArea = document.getElementById('authArea');
-const userEmailDisplay = document.getElementById('userEmailDisplay');
+// 認証・ヘッダープロフィール関連DOM
+const openProfileModalBtn = document.getElementById('openProfileModalBtn');
+const headerAvatar = document.getElementById('headerAvatar');
+const headerNickname = document.getElementById('headerNickname');
 const openAuthModalBtn = document.getElementById('openAuthModalBtn');
 const logoutBtn = document.getElementById('logoutBtn');
 const authModal = document.getElementById('authModal');
@@ -126,6 +146,19 @@ const authTabs = document.querySelectorAll('.auth-tab');
 const authForm = document.getElementById('authForm');
 const authSubmitBtn = document.getElementById('authSubmitBtn');
 const authErrorMsg = document.getElementById('authErrorMsg');
+
+// プロフィールモーダル関連DOM
+const profileModal = document.getElementById('profileModal');
+const closeProfileModalBtn = document.getElementById('closeProfileModalBtn');
+const profileForm = document.getElementById('profileForm');
+const profileNicknameInput = document.getElementById('profileNickname');
+const profileLivingStyleSelect = document.getElementById('profileLivingStyle');
+const avatarIconGrid = document.getElementById('avatarIconGrid');
+const avatarColorGrid = document.getElementById('avatarColorGrid');
+const previewAvatarCircle = document.getElementById('previewAvatarCircle');
+const previewNickname = document.getElementById('previewNickname');
+const previewLivingStyle = document.getElementById('previewLivingStyle');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
 
 // きほんのきDOM
 const columnCategoryFilter = document.getElementById('columnCategoryFilter');
@@ -136,6 +169,9 @@ const closeColumnModalBtn = document.getElementById('closeColumnModalBtn');
 // おたすけDOM
 const helpAuthNotice = document.getElementById('helpAuthNotice');
 const postForm = document.getElementById('postForm');
+const postAsProfileBtn = document.getElementById('postAsProfileBtn');
+const postFormAvatar = document.getElementById('postFormAvatar');
+const postFormAuthorInfo = document.getElementById('postFormAuthorInfo');
 const postsContainer = document.getElementById('postsContainer');
 const postFilterBtns = document.querySelectorAll('[data-post-filter]');
 const refreshPostsBtn = document.getElementById('refreshPostsBtn');
@@ -215,6 +251,168 @@ document.querySelectorAll('.feature-card').forEach((card) => {
 });
 
 // =========================================================
+// プロフィール管理（作成・編集・プレビュー）
+// =========================================================
+let selectedIcon = '🏠';
+let selectedColor = '#2b8a78';
+
+function initProfilePickers() {
+  avatarIconGrid.innerHTML = AVATAR_ICONS.map((icon) => `
+    <button type="button" class="icon-choice" data-icon="${icon}">${icon}</button>
+  `).join('');
+
+  avatarColorGrid.innerHTML = AVATAR_COLORS.map((color) => `
+    <button type="button" class="color-choice" data-color="${color}" style="background-color: ${color};" aria-label="${color}"></button>
+  `).join('');
+
+  avatarIconGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.icon-choice');
+    if (!btn) return;
+    selectedIcon = btn.dataset.icon;
+    updateProfilePreview();
+  });
+
+  avatarColorGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.color-choice');
+    if (!btn) return;
+    selectedColor = btn.dataset.color;
+    updateProfilePreview();
+  });
+
+  profileNicknameInput.addEventListener('input', updateProfilePreview);
+  profileLivingStyleSelect.addEventListener('change', updateProfilePreview);
+}
+
+function updateProfilePreview() {
+  const nick = profileNicknameInput.value.trim() || '名無しの生活者';
+  const style = profileLivingStyleSelect.value;
+
+  previewAvatarCircle.textContent = selectedIcon;
+  previewAvatarCircle.style.backgroundColor = selectedColor;
+  previewNickname.textContent = nick;
+  previewLivingStyle.textContent = style;
+
+  avatarIconGrid.querySelectorAll('.icon-choice').forEach((btn) => {
+    btn.classList.toggle('selected', btn.dataset.icon === selectedIcon);
+  });
+
+  avatarColorGrid.querySelectorAll('.color-choice').forEach((btn) => {
+    btn.classList.toggle('selected', btn.dataset.color === selectedColor);
+  });
+}
+
+function openProfileModal(isFirstSetup = false) {
+  if (!currentUser) return;
+  document.getElementById('profileModalTitle').textContent = isFirstSetup
+    ? 'はじめまして！プロフィールを作成しよう'
+    : 'プロフィール設定';
+
+  profileNicknameInput.value = currentProfile.nickname || '';
+  profileLivingStyleSelect.value = currentProfile.living_style || '一人暮らし';
+  selectedIcon = currentProfile.avatar_icon || '🏠';
+  selectedColor = currentProfile.avatar_color || '#2b8a78';
+
+  updateProfilePreview();
+  profileModal.classList.remove('hidden');
+}
+
+function renderProfileDisplays() {
+  // ヘッダー表示更新
+  headerAvatar.textContent = currentProfile.avatar_icon;
+  headerAvatar.style.backgroundColor = currentProfile.avatar_color;
+  headerNickname.textContent = currentProfile.nickname;
+
+  // 投稿フォーム上の表示更新
+  postFormAvatar.textContent = currentProfile.avatar_icon;
+  postFormAvatar.style.backgroundColor = currentProfile.avatar_color;
+  postFormAuthorInfo.textContent = `${currentProfile.nickname}（${currentProfile.living_style}）`;
+}
+
+async function fetchOrCreateUserProfile(user) {
+  const { data, error } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('プロフィール取得エラー:', error.message);
+    return;
+  }
+
+  if (data) {
+    currentProfile = {
+      nickname: data.nickname || '名無しの生活者',
+      avatar_icon: data.avatar_icon || '🏠',
+      avatar_color: data.avatar_color || '#2b8a78',
+      living_style: data.living_style || '一人暮らし'
+    };
+    renderProfileDisplays();
+
+    // 初期状態のままなら初回作成モーダルを案内
+    if (!data.nickname || data.nickname === '名無しの生活者') {
+      openProfileModal(true);
+    }
+  } else {
+    // レコードがない場合はデフォルト作成してモーダルを開く
+    const defaultProfile = {
+      id: user.id,
+      nickname: '名無しの生活者',
+      avatar_icon: '🏠',
+      avatar_color: '#2b8a78',
+      living_style: '一人暮らし'
+    };
+    await supabaseClient.from('profiles').upsert(defaultProfile);
+    currentProfile = defaultProfile;
+    renderProfileDisplays();
+    openProfileModal(true);
+  }
+}
+
+profileForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentUser) return;
+
+  const nickname = profileNicknameInput.value.trim() || '名無しの生活者';
+  const livingStyle = profileLivingStyleSelect.value;
+
+  saveProfileBtn.disabled = true;
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert({
+      id: currentUser.id,
+      nickname,
+      avatar_icon: selectedIcon,
+      avatar_color: selectedColor,
+      living_style: livingStyle
+    });
+
+  saveProfileBtn.disabled = false;
+
+  if (error) {
+    showToast(`プロフィールの保存に失敗しました: ${error.message}`, true);
+    return;
+  }
+
+  currentProfile = {
+    nickname,
+    avatar_icon: selectedIcon,
+    avatar_color: selectedColor,
+    living_style: livingStyle
+  };
+
+  renderProfileDisplays();
+  profileModal.classList.add('hidden');
+  showToast('プロフィールを保存しました！');
+  loadPosts();
+});
+
+openProfileModalBtn.addEventListener('click', () => openProfileModal(false));
+postAsProfileBtn.addEventListener('click', () => openProfileModal(false));
+closeProfileModalBtn.addEventListener('click', () => profileModal.classList.add('hidden'));
+
+// =========================================================
 // 認証処理（Supabase Auth: メール + パスワード）
 // =========================================================
 function openAuthModal(mode = 'login') {
@@ -264,7 +462,7 @@ authForm.addEventListener('submit', async (e) => {
       if (error) throw error;
 
       if (data.session) {
-        showToast('会員登録が完了し、ログインしました！');
+        showToast('会員登録が完了しました！プロフィールを設定しましょう');
         authModal.classList.add('hidden');
       } else {
         showToast('確認メールを送信しました。メール内のリンクを確認してログインしてください。');
@@ -297,32 +495,33 @@ logoutBtn.addEventListener('click', async () => {
   showToast('ログアウトしました');
 });
 
-function updateUIForUser(user) {
+async function updateUIForUser(user) {
   currentUser = user;
   if (user) {
-    userEmailDisplay.textContent = user.email;
-    userEmailDisplay.classList.remove('hidden');
+    openProfileModalBtn.classList.remove('hidden');
     openAuthModalBtn.classList.add('hidden');
     logoutBtn.classList.remove('hidden');
 
     // おたすけフォーム表示
     helpAuthNotice.classList.add('hidden');
     postForm.classList.remove('hidden');
+    postAsProfileBtn.classList.remove('hidden');
 
     // リマインダー表示
     reminderAuthNotice.classList.add('hidden');
     reminderWorkspace.classList.remove('hidden');
 
+    await fetchOrCreateUserProfile(user);
     loadConsumables();
   } else {
-    userEmailDisplay.textContent = '';
-    userEmailDisplay.classList.add('hidden');
+    openProfileModalBtn.classList.add('hidden');
     openAuthModalBtn.classList.remove('hidden');
     logoutBtn.classList.add('hidden');
 
     // おたすけフォーム非表示
     helpAuthNotice.classList.remove('hidden');
     postForm.classList.add('hidden');
+    postAsProfileBtn.classList.add('hidden');
 
     // リマインダー非表示
     reminderAuthNotice.classList.remove('hidden');
@@ -403,9 +602,11 @@ async function loadPosts() {
 
   postsContainer.innerHTML = data.map((post) => {
     const isMine = currentUser && post.user_id === currentUser.id;
-    const authorLabel = post.author_email
-      ? escapeHtml(post.author_email.split('@')[0]) + ' さん'
-      : '一人暮らしユーザー';
+    // 自分の投稿は最新のプロフィールを反映、他人の投稿は保存されたプロフィールを表示
+    const nickname = isMine ? currentProfile.nickname : (post.author_nickname || '名無しの生活者');
+    const avatarIcon = isMine ? currentProfile.avatar_icon : (post.author_avatar_icon || '🏠');
+    const avatarColor = isMine ? currentProfile.avatar_color : (post.author_avatar_color || '#2b8a78');
+    const livingStyle = isMine ? currentProfile.living_style : (post.author_living_style || '一人暮らし');
 
     return `
       <article class="post-item">
@@ -416,7 +617,13 @@ async function loadPosts() {
         <h4 class="post-title">${escapeHtml(post.title)}</h4>
         <p class="post-content">${escapeHtml(post.content)}</p>
         <div class="post-footer">
-          <span>投稿者: ${authorLabel}</span>
+          <div class="post-author-box">
+            <span class="avatar-circle avatar-md" style="background-color: ${escapeHtml(avatarColor)};">${escapeHtml(avatarIcon)}</span>
+            <div class="post-author-meta">
+              <span class="post-author-name">${escapeHtml(nickname)}</span>
+              <span class="living-tag">${escapeHtml(livingStyle)}</span>
+            </div>
+          </div>
           ${isMine ? `<button type="button" class="btn btn-danger btn-sm delete-post-btn" data-id="${post.id}">削除</button>` : ''}
         </div>
       </article>
@@ -443,6 +650,10 @@ postForm.addEventListener('submit', async (e) => {
     {
       user_id: currentUser.id,
       author_email: currentUser.email,
+      author_nickname: currentProfile.nickname,
+      author_avatar_icon: currentProfile.avatar_icon,
+      author_avatar_color: currentProfile.avatar_color,
+      author_living_style: currentProfile.living_style,
       category,
       title,
       content
@@ -542,13 +753,11 @@ async function loadConsumables() {
     return;
   }
 
-  // 残量計算とソート（残り日数が少ない順）
   const enriched = data.map((item) => ({
     ...item,
     calc: calculateConsumableStatus(item.purchased_date, item.usage_cycle_days)
   })).sort((a, b) => a.calc.remainingDays - b.calc.remainingDays);
 
-  // ホーム画面への通知表示
   const urgentItems = enriched.filter((i) => i.calc.status === 'danger' || i.calc.status === 'warning');
   if (urgentItems.length > 0) {
     const names = urgentItems.slice(0, 3).map((i) => i.name).join('、');
@@ -665,13 +874,12 @@ refreshConsumablesBtn.addEventListener('click', loadConsumables);
 // =========================================================
 async function initApp() {
   purchasedDateInput.value = getTodayISO();
+  initProfilePickers();
   renderColumns('all');
 
-  // 現在のセッションを取得
   const { data: { session } } = await supabaseClient.auth.getSession();
-  updateUIForUser(session?.user ?? null);
+  await updateUIForUser(session?.user ?? null);
 
-  // 認証状態の変化を監視
   supabaseClient.auth.onAuthStateChange((_event, newSession) => {
     updateUIForUser(newSession?.user ?? null);
   });

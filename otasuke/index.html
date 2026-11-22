@@ -14,7 +14,12 @@
     <div class="header-inner">
       <h1 class="logo" id="logoBtn">🏠 お助けライフ</h1>
       <div class="auth-area" id="authArea">
-        <span id="userEmailDisplay" class="user-email hidden"></span>
+        <!-- ログイン中のプロフィール表示ボタン -->
+        <button type="button" id="openProfileModalBtn" class="user-profile-pill hidden" title="プロフィールを編集">
+          <span id="headerAvatar" class="avatar-circle avatar-sm">🏠</span>
+          <span id="headerNickname" class="header-nickname">ゲスト</span>
+          <span class="edit-badge">編集</span>
+        </button>
         <button id="openAuthModalBtn" class="btn btn-primary btn-sm">ログイン / 新規登録</button>
         <button id="logoutBtn" class="btn btn-outline btn-sm hidden">ログアウト</button>
       </div>
@@ -106,10 +111,19 @@
 
       <!-- 投稿フォーム（ログイン時のみ有効） -->
       <div class="card post-form-card">
-        <h3>新しく投稿する</h3>
+        <div class="post-form-header">
+          <h3>新しく投稿する</h3>
+          <button type="button" id="postAsProfileBtn" class="post-as-badge hidden" title="プロフィールを変更">
+            <span id="postFormAvatar" class="avatar-circle avatar-xs">🏠</span>
+            <span id="postFormAuthorInfo">投稿者名</span>
+            <span class="text-link">変更</span>
+          </button>
+        </div>
+
         <div id="helpAuthNotice" class="auth-notice">
           投稿や自分の投稿管理を行うには<button type="button" class="link-btn trigger-login">ログイン / 新規登録</button>してください。（閲覧はログイン不要です）
         </div>
+
         <form id="postForm" class="hidden">
           <div class="form-row">
             <label for="postCategory">カテゴリ</label>
@@ -225,6 +239,53 @@
         </div>
         <p id="authErrorMsg" class="error-text hidden"></p>
         <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block">ログインする</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- プロフィール設定モーダル -->
+  <div id="profileModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="closeProfileModalBtn" aria-label="閉じる">×</button>
+      <h3 id="profileModalTitle">プロフィール設定</h3>
+      <p class="modal-desc">掲示板で表示されるアイコンとニックネームを設定できます（メールアドレスは公開されません）。</p>
+
+      <!-- プレビュー表示 -->
+      <div class="profile-preview-box">
+        <div id="previewAvatarCircle" class="avatar-circle avatar-lg" style="background-color: #2b8a78;">🏠</div>
+        <div class="profile-preview-text">
+          <strong id="previewNickname">名無しの生活者</strong>
+          <span id="previewLivingStyle" class="living-tag">一人暮らし</span>
+        </div>
+      </div>
+
+      <form id="profileForm">
+        <div class="form-row">
+          <label for="profileNickname">ニックネーム（15文字以内）</label>
+          <input type="text" id="profileNickname" maxlength="15" placeholder="例：ひとり暮らし1年生" required>
+        </div>
+
+        <div class="form-row">
+          <label for="profileLivingStyle">暮らしのスタイル</label>
+          <select id="profileLivingStyle" required>
+            <option value="一人暮らし">一人暮らし</option>
+            <option value="実家住み">実家住み</option>
+            <option value="友人・恋人と同居">友人・恋人と同居</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <label>アバターアイコンを選ぶ</label>
+          <div id="avatarIconGrid" class="icon-picker-grid"></div>
+        </div>
+
+        <div class="form-row">
+          <label>アバター背景カラーを選ぶ</label>
+          <div id="avatarColorGrid" class="color-picker-grid"></div>
+        </div>
+
+        <button type="submit" id="saveProfileBtn" class="btn btn-primary btn-block">プロフィールを保存する</button>
       </form>
     </div>
   </div>
