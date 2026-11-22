@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>お助けライフ | 初めての一人暮らしサポートアプリ</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Supabase JS SDK (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <!-- ヘッダー -->
+  <header class="app-header">
+    <div class="header-inner">
+      <h1 class="logo" id="logoBtn">🏠 お助けライフ</h1>
+      <div class="auth-area" id="authArea">
+        <span id="userEmailDisplay" class="user-email hidden"></span>
+        <button id="openAuthModalBtn" class="btn btn-primary btn-sm">ログイン / 新規登録</button>
+        <button id="logoutBtn" class="btn btn-outline btn-sm hidden">ログアウト</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- グローバルナビゲーション -->
+  <nav class="main-nav" aria-label="メインメニュー">
+    <button class="nav-btn active" data-target="home">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">ホーム</span>
+    </button>
+    <button class="nav-btn" data-target="basics">
+      <span class="nav-icon">📖</span>
+      <span class="nav-label">きほんのき</span>
+    </button>
+    <button class="nav-btn" data-target="help">
+      <span class="nav-icon">💬</span>
+      <span class="nav-label">おたすけ</span>
+    </button>
+    <button class="nav-btn" data-target="reminder">
+      <span class="nav-icon">🧴</span>
+      <span class="nav-label">リマインダー</span>
+    </button>
+  </nav>
+
+  <!-- メインコンテンツ -->
+  <main class="container">
+    <!-- 通知バナー -->
+    <div id="toastMessage" class="toast hidden" role="alert"></div>
+
+    <!-- 1. ホーム画面 -->
+    <section id="view-home" class="view active">
+      <div class="hero-card">
+        <h2>初めての一人暮らし、もう迷わない！</h2>
+        <p>「お助けライフ」は、家事のちょっとした疑問の解決や、日用品・消耗品の買い忘れ防止をサポートする生活応援アプリです。</p>
+        <div id="homeAlertSummary" class="home-alert-box hidden"></div>
+      </div>
+
+      <h3 class="section-title">主要機能メニュー</h3>
+      <div class="feature-grid">
+        <article class="feature-card" data-goto="basics">
+          <div class="feature-icon">📖</div>
+          <h4>きほんのき</h4>
+          <p>「洗濯表示の見方」「排水口の掃除頻度」「正しいゴミ分別」など、今さら聞けない家事の常識コラムを読めます。</p>
+          <span class="feature-link">コラムを読む →</span>
+        </article>
+
+        <article class="feature-card" data-goto="help">
+          <div class="feature-icon">💬</div>
+          <h4>おたすけ掲示板</h4>
+          <p>わからない家事のコツや失敗談を投稿したり、みんなが実践している生活の知恵・ライフハックを見たりできます。</p>
+          <span class="feature-link">みんなに聞く・見る →</span>
+        </article>
+
+        <article class="feature-card" data-goto="reminder">
+          <div class="feature-icon">🧴</div>
+          <h4>消耗品リマインダー</h4>
+          <p>トイレットペーパーや洗剤などの購入日と使用ペースを登録すると、残量目安と次の買い替え時期を自動予測します。</p>
+          <span class="feature-link">残量をチェック →</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- 2. きほんのき画面 -->
+    <section id="view-basics" class="view hidden">
+      <div class="view-header">
+        <h2>📖 きほんのき（家事の常識コラム）</h2>
+        <p>一人暮らしでつまずきやすい基本のノウハウをまとめました。</p>
+      </div>
+
+      <div class="category-filter" id="columnCategoryFilter">
+        <button class="filter-chip active" data-category="all">すべて</button>
+        <button class="filter-chip" data-category="laundry">洗濯</button>
+        <button class="filter-chip" data-category="cleaning">掃除</button>
+        <button class="filter-chip" data-category="cooking">料理・キッチン</button>
+        <button class="filter-chip" data-category="money">手続き・節約</button>
+      </div>
+
+      <div id="columnList" class="column-grid"></div>
+    </section>
+
+    <!-- 3. おたすけ画面 -->
+    <section id="view-help" class="view hidden">
+      <div class="view-header">
+        <h2>💬 おたすけ（質問＆ライフハック共有）</h2>
+        <p>困っていることの質問や、役立ったライフハックを気軽に投稿しよう。</p>
+      </div>
+
+      <!-- 投稿フォーム（ログイン時のみ有効） -->
+      <div class="card post-form-card">
+        <h3>新しく投稿する</h3>
+        <div id="helpAuthNotice" class="auth-notice">
+          投稿や自分の投稿管理を行うには<button type="button" class="link-btn trigger-login">ログイン / 新規登録</button>してください。（閲覧はログイン不要です）
+        </div>
+        <form id="postForm" class="hidden">
+          <div class="form-row">
+            <label for="postCategory">カテゴリ</label>
+            <select id="postCategory" required>
+              <option value="質問・相談">❓ 質問・相談（教えて！）</option>
+              <option value="ライフハック">💡 ライフハック（これ便利！）</option>
+              <option value="失敗談・注意">⚠️ 失敗談・注意喚起</option>
+            </select>
+          </div>
+          <div class="form-row">
+            <label for="postTitle">タイトル</label>
+            <input type="text" id="postTitle" maxlength="80" placeholder="例：白いTシャツにカレーをこぼした時の落とし方" required>
+          </div>
+          <div class="form-row">
+            <label for="postContent">内容</label>
+            <textarea id="postContent" rows="4" maxlength="1000" placeholder="具体的な状況や、共有したいコツを書いてください" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary">投稿する</button>
+        </form>
+      </div>
+
+      <!-- 絞り込みタブ -->
+      <div class="list-controls">
+        <div class="tab-group">
+          <button class="tab-btn active" data-post-filter="all">みんなの投稿</button>
+          <button class="tab-btn" data-post-filter="mine">自分の投稿のみ</button>
+        </div>
+        <button id="refreshPostsBtn" class="btn btn-outline btn-sm">🔄 更新</button>
+      </div>
+
+      <div id="postsContainer" class="post-list">
+        <p class="loading-text">読み込み中...</p>
+      </div>
+    </section>
+
+    <!-- 4. リマインダー画面 -->
+    <section id="view-reminder" class="view hidden">
+      <div class="view-header">
+        <h2>🧴 消耗品リマインダー</h2>
+        <p>購入日と交換・使い切り目安（日数）を登録して、なくなりそうなタイミングをお知らせします。</p>
+      </div>
+
+      <div id="reminderAuthNotice" class="card auth-notice">
+        <p>消耗品リマインダーはユーザーごとの専用データとして保存されます。</p>
+        <button type="button" class="btn btn-primary trigger-login">ログインして管理を始める</button>
+      </div>
+
+      <div id="reminderWorkspace" class="hidden">
+        <!-- 消耗品登録フォーム -->
+        <div class="card">
+          <h3>消耗品を追加する</h3>
+          <form id="consumableForm" class="grid-form">
+            <div class="form-row">
+              <label for="itemName">品名</label>
+              <input type="text" id="itemName" maxlength="60" placeholder="例：トイレットペーパー（12ロール）" required>
+            </div>
+            <div class="form-row">
+              <label for="itemCategory">ジャンル</label>
+              <select id="itemCategory" required>
+                <option value="トイレ・バス">トイレ・バス用品</option>
+                <option value="キッチン">キッチン消耗品</option>
+                <option value="洗濯・掃除">洗濯・掃除洗剤</option>
+                <option value="日用品・衛生">日用品・衛生用品</option>
+              </select>
+            </div>
+            <div class="form-row">
+              <label for="purchasedDate">購入日（使い始め日）</label>
+              <input type="date" id="purchasedDate" required>
+            </div>
+            <div class="form-row">
+              <label for="usageCycleDays">使用頻度・使い切り目安（日）</label>
+              <input type="number" id="usageCycleDays" min="1" max="730" value="30" required>
+              <small class="help-text">※1人で使う場合の目安：洗剤30〜45日、ティッシュ1箱14〜20日など</small>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn btn-primary">登録する</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- 消耗品一覧 -->
+        <div class="list-controls">
+          <h3>登録済みの消耗品一覧（残り少ない順）</h3>
+          <button id="refreshConsumablesBtn" class="btn btn-outline btn-sm">🔄 更新</button>
+        </div>
+        <div id="consumablesContainer" class="consumable-list">
+          <p class="loading-text">読み込み中...</p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 認証モーダル（ログイン / 新規会員登録） -->
+  <div id="authModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="modal-card">
+      <button type="button" class="modal-close" id="closeAuthModalBtn" aria-label="閉じる">×</button>
+      <h3 id="authModalTitle">ログイン / 新規会員登録</h3>
+      <p class="modal-desc">メールアドレスとパスワードでアカウントを作成・ログインできます。</p>
+
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-auth-mode="login">ログイン</button>
+        <button type="button" class="auth-tab" data-auth-mode="signup">新規会員登録</button>
+      </div>
+
+      <form id="authForm">
+        <div class="form-row">
+          <label for="authEmail">メールアドレス</label>
+          <input type="email" id="authEmail" placeholder="example@email.com" required>
+        </div>
+        <div class="form-row">
+          <label for="authPassword">パスワード（6文字以上）</label>
+          <input type="password" id="authPassword" minlength="6" placeholder="6文字以上のパスワード" required>
+        </div>
+        <p id="authErrorMsg" class="error-text hidden"></p>
+        <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block">ログインする</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- コラム詳細モーダル -->
+  <div id="columnModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="columnModalTitle">
+    <div class="modal-card modal-card-lg">
+      <button type="button" class="modal-close" id="closeColumnModalBtn" aria-label="閉じる">×</button>
+      <span id="columnModalBadge" class="badge"></span>
+      <h3 id="columnModalTitle"></h3>
+      <div id="columnModalBody" class="column-body"></div>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <p>&copy; 2026 お助けライフ - 初めての一人暮らし応援プロジェクト</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
