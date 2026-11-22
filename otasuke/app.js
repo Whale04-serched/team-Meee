@@ -1,8 +1,8 @@
 // =========================================================
 // Supabase 接続設定（ご自身のプロジェクトの値に差し替えてください）
 // =========================================================
-const SUPABASE_URL = 'https://xxxxxxxxxxxx.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_xxxxxxxxxxxxxxxx';
+const SUPABASE_URL = 'https://dtgblouomioqqhzunrzv.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_s3V-tNcH0KWQ6mu5UmMA5w_m7os17qA';
 
 // Supabaseクライアント初期化
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
